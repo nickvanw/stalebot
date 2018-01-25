@@ -1,4 +1,11 @@
+const createScheduler = require('probot-scheduler');
+
 module.exports = (robot) => {
+  scheduler = createScheduler(robot);
+
+  robot.on('schedule.repository', context => {
+  })
+
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = newActionParams(context)
     const result = await context.github.issues.addLabels(params)
