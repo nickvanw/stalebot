@@ -1,4 +1,3 @@
-pry = require('pryjs')
 module.exports = (robot) => {
   // New PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
@@ -60,7 +59,6 @@ async function is_maintainer(context) {
   const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
   permission = result.data.permission
-  console.log(username)
   return permission == "admin" || permission == "write"
 }
 
@@ -77,8 +75,7 @@ function labelParams(context, label_names) {
 function findUsername(context) {
   if (context.payload.comment) {
     return context.payload.comment.user.login
-  }
-  if (context.payload.issue) {
+  } else if (context.payload.issue) {
     return context.payload.issue.user.login
   } else {
     return context.payload.review.user.login
