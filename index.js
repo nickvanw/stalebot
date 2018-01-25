@@ -1,10 +1,13 @@
 module.exports = (robot) => {
-  // Your code here
-  console.log('Yay, the app was loaded!')
+  // New Issue or Pull Request is opened in the repo
+  robot.on(['pull_request.opened', 'issues.opened'], async context => {
+    // Apply the labels (waiting for maintainer, ...)
+    robot.log(context)
+  })
 
-  // For more information on building apps:
-  // https://probot.github.io/docs/
-
-  // To get your app running against GitHub, see:
-  // https://probot.github.io/docs/development/
+  // App is installed on a repo
+  robot.on('installation_repositories.added', async context => {
+    // Create the necessary labels
+    robot.log(context)
+  })
 }
