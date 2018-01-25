@@ -24,23 +24,41 @@ module.exports = (robot) => {
     await createLabels(context, context.payload.repositories_added)
   })
 
-  // Original Issue author comments.
+  robot.on('pull_request_review_comment.created', async context => {
+    let reviewAuthor = context.payload.comment.user.login
+    let prAuthor = context.payload.pull_request.user.login
+    if (reviewAuthor == prAuthor) {
+      await authorCommented(
+        context,
+        context.payload.repository.owner.login,
+        context.payload.repository.name,
+        context.payload.pull_request.number,
+      )
+    }
+  })
+
+  robot.on('pull_request_review.submitted', async context => {
+    let reviewAuthor = context.payload.review.user.login
+    let prAuthor = context.payload.pull_request.user.login
+    if (reviewAuthor == prAuthor) {
+      await authorCommented(
+        context,
+        context.payload.repository.owner.login,
+        context.payload.repository.name,
+        context.payload.pull_request.number,
+      )
+    }
+  })
   robot.on('issue_comment.created', async context => {
     let commentAuthor = context.payload.sender.login
     let issueAuthor = context.payload.comment.user.login
     if (commentAuthor == issueAuthor) {
-      context.github.issues.removeLabel({
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        number: context.payload.issue.number,
-        name: "stalebot/waiting-for/author"
-      })
-      context.github.issues.addLabels({
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        number: context.payload.issue.number,
-        labels: ["stalebot/waiting-for/maintainer"]
-      })
+      await authorCommented(
+        context,
+        context.payload.repository.owner.login,
+        context.payload.repository.name,
+        context.payload.issue.number,
+      )
     }
   })
 }
@@ -91,6 +109,21 @@ function issueOrPRNumber(context) {
   } else {
     return context.payload.pull_request.number
   }
+
+
+async function authorCommented(context, owner, repo, number) {
+  context.github.issues.removeLabel({
+    owner: owner,
+    repo: repo,
+    number: number,
+    name: "stalebot/waiting-for/author"
+  })
+  context.github.issues.addLabels({
+    owner: owner,
+    repo: repo,
+    number: number,
+    labels: ["stalebot/waiting-for/maintainer"]
+  })
 }
 
 let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
