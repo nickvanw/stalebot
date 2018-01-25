@@ -1,3 +1,4 @@
+pry = require('pryjs')
 module.exports = (robot) => {
   // New PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
@@ -29,7 +30,7 @@ module.exports = (robot) => {
     let prAuthor = context.payload.pull_request.user.login
     if (reviewAuthor == prAuthor) {
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
-      await context.github.issues.addLabel(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
 
@@ -38,15 +39,15 @@ module.exports = (robot) => {
     let prAuthor = context.payload.pull_request.user.login
     if (reviewAuthor == prAuthor) {
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
-      await context.github.issues.addLabel(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
   robot.on('issue_comment.created', async context => {
     let commentAuthor = context.payload.sender.login
-    let issueAuthor = context.payload.comment.user.login
+    let issueAuthor = context.payload.issue.user.login
     if (commentAuthor == issueAuthor) {
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
-      await context.github.issues.addLabel(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
 }
@@ -54,11 +55,12 @@ module.exports = (robot) => {
 // Check if commenter is a maintainer
 async function is_maintainer(context) {
   owner = context.payload.repository.owner.login
-  username = username(context)
+  username = findUsername(context)
   repo = repoName(context)
   const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
   permission = result.data.permission
+  console.log(username)
   return permission == "admin" || permission == "write"
 }
 
@@ -72,8 +74,10 @@ function labelParams(context, label_names) {
   return Object.assign(params, label_names)
 }
 
-// Find username for issue or review
-function username(context) {
+function findUsername(context) {
+  if (context.payload.comment) {
+    return context.payload.comment.user.login
+  }
   if (context.payload.issue) {
     return context.payload.issue.user.login
   } else {
