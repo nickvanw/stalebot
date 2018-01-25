@@ -26,8 +26,29 @@ module.exports = (robot) => {
   }
 
   // App is installed on a repo
+  robot.on('installation.created', async context => {
+    await createLabels(context, context.payload.repositories)
+  })
+
+  // App is installed on a specific repo?
   robot.on('installation_repositories.added', async context => {
-    // Create the necessary labels
-    robot.log(context)
+    await createLabels(context, context.payload.repositories_added)
+  })
+}
+
+let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
+
+// create labels in new repo
+// todo(nick): does not check if labels exist.
+async function createLabels(context, repos) {
+  repos.forEach(repo => {
+    labels.forEach(label => {
+      context.github.issues.createLabel({
+        owner: context.payload.installation.account.login,
+        repo: repo.name,
+        name: label,
+        color: "cccccc"
+      })
+    })
   })
 }
