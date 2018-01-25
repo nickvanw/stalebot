@@ -26,8 +26,20 @@ module.exports = (robot) => {
   }
 
   // App is installed on a repo
-  robot.on('installation_repositories.added', async context => {
+  robot.on('installation.created', async context => {
+    // list of labels to create
+    let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
     // Create the necessary labels
-    robot.log(context)
+    // todo(nick): This will fail for every label that already exists. Harmless
+    await context.payload.repositories.forEach(repo => {
+      labels.forEach(label => {
+        context.github.issues.createLabel({
+          owner: context.payload.installation.account.login,
+          repo: repo.name,
+          name: label,
+          color: "cccccc"
+        })
+      })
+    })
   })
 }
