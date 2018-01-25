@@ -45,6 +45,7 @@ module.exports = (robot) => {
   })
 }
 
+
 // Check if commenter is a maintainer
 async function is_maintainer(context) {
   owner = context.payload.repository.owner.login
@@ -93,7 +94,14 @@ function issueOrPRNumber(context) {
   }
 }
 
-let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
+let labels = [
+  {name: "stalebot/waiting-for/maintainer", color: "cccccc"},
+  {name: "stalebot/waiting-for/author", color: "cccccc"},
+  {name: "stalebot/status/fresh", color: "5dcc77"},
+  {name: "stalebot/status/needs-attention", color: "f9dc5c"},
+  {name: "stalebot/status/stale", color: "ff8552"},
+  {name: "stalebot/status/dire", color: "da344d"}
+]
 
 // create labels in new repo
 // todo(nick): does not check if labels exist.
@@ -103,8 +111,8 @@ async function createLabels(context, repos) {
       context.github.issues.createLabel({
         owner: context.payload.installation.account.login,
         repo: repo.name,
-        name: label,
-        color: "cccccc"
+        name: label.name,
+        color: label.color
       })
     })
   })
