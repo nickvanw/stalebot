@@ -2,12 +2,10 @@ module.exports = (robot) => {
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = newActionParams(context)
     const result = await context.github.issues.addLabels(params)
-    robot.log(result)
     return result
   })
 
   function newActionParams(context) {
-
     params = {
       owner: context["payload"]["repository"]["owner"]["login"],
       repo: context["payload"]["repository"]["name"],
@@ -33,6 +31,26 @@ module.exports = (robot) => {
   // App is installed on a specific repo?
   robot.on('installation_repositories.added', async context => {
     await createLabels(context, context.payload.repositories_added)
+  })
+
+  // Original Issue author comments.
+  robot.on('issue_comment.created', async context => {
+    let commentAuthor = context.payload.sender.login
+    let issueAuthor = context.payload.comment.user.login
+    if (commentAuthor == issueAuthor) {
+      context.github.issues.removeLabel({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        number: context.payload.issue.number,
+        name: "stalebot/waiting-for/author"
+      })
+      context.github.issues.addLabels({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        number: context.payload.issue.number,
+        labels: ["stalebot/waiting-for/maintainer"]
+      })
+    }
   })
 }
 
