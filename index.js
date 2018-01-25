@@ -98,23 +98,29 @@ module.exports = (robot) => {
     await createLabels(context, context.payload.repositories_added)
   })
 
-  // Original Issue author comments.
+  robot.on('pull_request_review_comment.created', async context => {
+    let reviewAuthor = context.payload.comment.user.login
+    let prAuthor = context.payload.pull_request.user.login
+    if (reviewAuthor == prAuthor) {
+      await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
+    }
+  })
+
+  robot.on('pull_request_review.submitted', async context => {
+    let reviewAuthor = context.payload.review.user.login
+    let prAuthor = context.payload.pull_request.user.login
+    if (reviewAuthor == prAuthor) {
+      await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
+    }
+  })
   robot.on('issue_comment.created', async context => {
     let commentAuthor = context.payload.sender.login
-    let issueAuthor = context.payload.comment.user.login
+    let issueAuthor = context.payload.issue.user.login
     if (commentAuthor == issueAuthor) {
-      context.github.issues.removeLabel({
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        number: context.payload.issue.number,
-        name: "stalebot/waiting-for/author"
-      })
-      context.github.issues.addLabels({
-        owner: context.payload.repository.owner.login,
-        repo: context.payload.repository.name,
-        number: context.payload.issue.number,
-        labels: ["stalebot/waiting-for/maintainer"]
-      })
+      await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/author"}))
+      await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
 }
@@ -123,7 +129,7 @@ module.exports = (robot) => {
 // Check if commenter is a maintainer
 async function is_maintainer(context) {
   owner = context.payload.repository.owner.login
-  username = username(context)
+  username = findUsername(context)
   repo = repoName(context)
   const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
@@ -141,9 +147,10 @@ function labelParams(context, label_names) {
   return Object.assign(params, label_names)
 }
 
-// Find username for issue or review
-function username(context) {
-  if (context.payload.issue) {
+function findUsername(context) {
+  if (context.payload.comment) {
+    return context.payload.comment.user.login
+  } else if (context.payload.issue) {
     return context.payload.issue.user.login
   } else {
     return context.payload.review.user.login
