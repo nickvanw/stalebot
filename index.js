@@ -56,7 +56,11 @@ module.exports = (robot) => {
 
 let labels = [
   {name: "stalebot/waiting-for/maintainer", color: "cccccc"},
-  {name: "stalebot/waiting-for/author", color: "cccccc"}
+  {name: "stalebot/waiting-for/author", color: "cccccc"},
+  {name: "stalebot/status/fresh", color: "5dcc77"},
+  {name: "stalebot/status/needs-attention", color: "f9dc5c"},
+  {name: "stalebot/status/stale", color: "ff8552"},
+  {name: "stalebot/status/dire", color: "da344d"}
 ]
 
 // create labels in new repo
