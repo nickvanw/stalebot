@@ -1,59 +1,111 @@
 module.exports = (robot) => {
+  // New PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = labelParams(context, { labels: ["stalebot/waiting-for/maintainer"] })
     const result = await context.github.issues.addLabels(params)
-    robot.log(result)
     return result
   })
 
-  robot.on(['issue_comment.created', 'commit_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
+  // Maintainer comments/reviews
+  robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
     if (await is_maintainer(context)){
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/author"]}))
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/maintainer"}))
     }
   })
 
-  async function is_maintainer(context) {
-    robot.log(context)
-    owner = context.payload.repository.owner.login
-    username = username(context)
-    repo = repoName(context)
-    const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
+  // App is installed on a repo
+  robot.on('installation.created', async context => {
+    await createLabels(context, context.payload.repositories)
+  })
 
-    permission = result.data.permission
-    return permission == "admin" || permission == "write"
-  }
+  // App is installed on a specific repo?
+  robot.on('installation_repositories.added', async context => {
+    await createLabels(context, context.payload.repositories_added)
+  })
 
-  function labelParams(context, label_names) {
-    params = {
-      owner: context.payload.repository.owner.login,
-      repo: repoName(context),
-      number: issueOrPRNumber(context),
+  // Original Issue author comments.
+  robot.on('issue_comment.created', async context => {
+    let commentAuthor = context.payload.sender.login
+    let issueAuthor = context.payload.comment.user.login
+    if (commentAuthor == issueAuthor) {
+      context.github.issues.removeLabel({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        number: context.payload.issue.number,
+        name: "stalebot/waiting-for/author"
+      })
+      context.github.issues.addLabels({
+        owner: context.payload.repository.owner.login,
+        repo: context.payload.repository.name,
+        number: context.payload.issue.number,
+        labels: ["stalebot/waiting-for/maintainer"]
+      })
     }
-    return Object.assign(params, label_names)
-  }
+  })
+}
 
-  function username(context) {
-    if (context["payload"]["issue"]) {
-      return context["payload"]["issue"]["user"]["login"]
-    } else {
-      return context["payload"]["review"]["user"]["login"]
-    }
-  }
+// Check if commenter is a maintainer
+async function is_maintainer(context) {
+  owner = context.payload.repository.owner.login
+  username = username(context)
+  repo = repoName(context)
+  const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
-  function repoName(context) {
-    if (context["payload"]["repository"]) {
-      return context["payload"]["repository"]["name"]
-    } else {
-      return context["payload"]["repo"]["name"]
-    }
-  }
+  permission = result.data.permission
+  return permission == "admin" || permission == "write"
+}
 
-  function issueOrPRNumber(context) {
-    if (context["payload"]["issue"]) {
-      return context["payload"]["issue"]["number"]
-    } else {
-      return context["payload"]["pull_request"]["number"]
-    }
+// Create params for adding or removing a label
+function labelParams(context, label_names) {
+  params = {
+    owner: context.payload.repository.owner.login,
+    repo: repoName(context),
+    number: issueOrPRNumber(context),
   }
+  return Object.assign(params, label_names)
+}
+
+// Find username for issue or review
+function username(context) {
+  if (context.payload.issue) {
+    return context.payload.issue.user.login
+  } else {
+    return context.payload.review.user.login
+  }
+}
+
+// Find repo name for issue or review
+function repoName(context) {
+  if (context.payload.repository) {
+    return context.payload.repository.name
+  } else {
+    return context.payload.repo.name
+  }
+}
+
+// Find issue or PR number
+function issueOrPRNumber(context) {
+  if (context.payload.issue) {
+    return context.payload.issue.number
+  } else {
+    return context.payload.pull_request.number
+  }
+}
+
+let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
+
+// create labels in new repo
+// todo(nick): does not check if labels exist.
+async function createLabels(context, repos) {
+  repos.forEach(repo => {
+    labels.forEach(label => {
+      context.github.issues.createLabel({
+        owner: context.payload.installation.account.login,
+        repo: repo.name,
+        name: label,
+        color: "cccccc"
+      })
+    })
+  })
 }
