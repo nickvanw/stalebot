@@ -1,5 +1,3 @@
-let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
-
 module.exports = (robot) => {
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = newActionParams(context)
@@ -37,6 +35,8 @@ module.exports = (robot) => {
     await createLabels(context, context.payload.repositories_added)
   })
 }
+
+let labels = ["stalebot/waiting-for/maintainer", "stalebot/waiting-for/author"]
 
 // create labels in new repo
 // todo(nick): does not check if labels exist.
