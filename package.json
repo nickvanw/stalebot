@@ -10,7 +10,9 @@
     "test": "jest && standard"
   },
   "dependencies": {
-    "probot": "^5.0.0"
+    "moment": "^2.20.1",
+    "probot": "^5.0.0",
+    "probot-scheduler": "^1.0.3"
   },
   "devDependencies": {
     "jest": "^21.2.1",
