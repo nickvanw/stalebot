@@ -2,11 +2,10 @@ const createScheduler = require('probot-scheduler');
 const moment = require('moment')
 
 module.exports = (robot) => {
-  // FIXME: remove interval after demo
-  createScheduler(robot, {interval: 60 * 1000 /* 1 minute */})
+  createScheduler(robot)
 
   robot.on('schedule.repository', async context => {
-    context.log(context.repo(), 'Checking for issues that need excalation')
+    context.log(context.repo(), 'Running scheduled job to check issues for escalation.')
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
@@ -16,7 +15,7 @@ module.exports = (robot) => {
 
     await context.github.paginate(issues, async res => {
       res.data.forEach(async issue => {
-        context.log({issue}, 'Checking issue for escalation')
+        context.log({issue: issue.html_url}, 'Checking issue for escalation.')
 
         let lastAuthorComment
 
@@ -43,14 +42,14 @@ module.exports = (robot) => {
 
         if (lastAuthorComment) {
           const lastCommentAt = moment(lastAuthorComment.create_at)
-          const age = now - lastCommentAt / 1000 / 60 // FIXME: switch to days :)
+          const age = now - lastCommentAt / 1000 / 60 / 60 / 24
 
-          if (age >= 180) {
+          if (age >= 90) {
             newLabel = 'stalebot/status/dire'
-          } else if (age >= 65) {
-            newLabel = 'stalebot/status/needs-attention'
-          } else if (age >= 5) {
+          } else if (age >= 15) {
             newLabel = 'stalebot/status/stale'
+          } else if (age >= 1) {
+            newLabel = 'stalebot/status/needs-attention'
           } else {
             newLabel = 'stalebot/status/fresh'
           }
@@ -73,7 +72,17 @@ module.exports = (robot) => {
     })
   })
 
-  // New PR is opened
+  // App is installed on an org or user account
+  robot.on('installation.created', async context => {
+    await createLabels(context, context.payload.repositories)
+  })
+
+  // App is installed on additional repositories in an org
+  robot.on('installation_repositories.added', async context => {
+    await createLabels(context, context.payload.repositories_added)
+  })
+
+  // New issue or PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = labelParams(context, { labels: ["stalebot/waiting-for/maintainer"] })
     const result = await context.github.issues.addLabels(params)
@@ -82,22 +91,13 @@ module.exports = (robot) => {
 
   // Maintainer comments/reviews
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
-    if (await is_maintainer(context)){
+    if (await isMaintainer(context)){
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/author"]}))
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/maintainer"}))
     }
   })
 
-  // App is installed on a repo
-  robot.on('installation.created', async context => {
-    await createLabels(context, context.payload.repositories)
-  })
-
-  // App is installed on a specific repo?
-  robot.on('installation_repositories.added', async context => {
-    await createLabels(context, context.payload.repositories_added)
-  })
-
+  // Author comments on a PR review
   robot.on('pull_request_review_comment.created', async context => {
     let reviewAuthor = context.payload.comment.user.login
     let prAuthor = context.payload.pull_request.user.login
@@ -107,6 +107,7 @@ module.exports = (robot) => {
     }
   })
 
+  // Author submits PR review
   robot.on('pull_request_review.submitted', async context => {
     let reviewAuthor = context.payload.review.user.login
     let prAuthor = context.payload.pull_request.user.login
@@ -115,6 +116,7 @@ module.exports = (robot) => {
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
+  // Author comments
   robot.on('issue_comment.created', async context => {
     let commentAuthor = context.payload.sender.login
     let issueAuthor = context.payload.issue.user.login
@@ -125,11 +127,10 @@ module.exports = (robot) => {
   })
 }
 
-
 // Check if commenter is a maintainer
-async function is_maintainer(context) {
+async function isMaintainer(context) {
   owner = context.payload.repository.owner.login
-  username = findUsername(context)
+  username = commenterUsername(context)
   repo = repoName(context)
   const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
@@ -147,7 +148,7 @@ function labelParams(context, label_names) {
   return Object.assign(params, label_names)
 }
 
-function findUsername(context) {
+function commenterUsername(context) {
   if (context.payload.comment) {
     return context.payload.comment.user.login
   } else if (context.payload.issue) {
@@ -184,7 +185,7 @@ let labels = [
   {name: "stalebot/status/dire", color: "da344d"}
 ]
 
-// create labels in new repo
+// Create labels in new repo
 // todo(nick): does not check if labels exist.
 async function createLabels(context, repos) {
   repos.forEach(repo => {
