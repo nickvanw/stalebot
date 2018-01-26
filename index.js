@@ -5,7 +5,7 @@ module.exports = (robot) => {
   createScheduler(robot)
 
   robot.on('schedule.repository', async context => {
-    context.log(context.repo(), 'Checking for issues that need excalation')
+    context.log(context.repo(), 'Running scheduled job to check issues for escalation.')
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
@@ -15,7 +15,7 @@ module.exports = (robot) => {
 
     await context.github.paginate(issues, async res => {
       res.data.forEach(async issue => {
-        context.log({issue}, 'Checking issue for escalation')
+        context.log({issue: issue.html_url}, 'Checking issue for escalation.')
 
         let lastAuthorComment
 
