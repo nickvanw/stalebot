@@ -81,7 +81,7 @@ module.exports = (robot) => {
 
   // Maintainer comments/reviews
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
-    if (await is_maintainer(context)){
+    if (await isMaintainer(context)){
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/author"]}))
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/maintainer"}))
     }
@@ -128,7 +128,7 @@ module.exports = (robot) => {
 }
 
 // Check if commenter is a maintainer
-async function is_maintainer(context) {
+async function isMaintainer(context) {
   owner = context.payload.repository.owner.login
   username = findUsername(context)
   repo = repoName(context)
