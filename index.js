@@ -130,7 +130,7 @@ module.exports = (robot) => {
 // Check if commenter is a maintainer
 async function isMaintainer(context) {
   owner = context.payload.repository.owner.login
-  username = findUsername(context)
+  username = commenterUsername(context)
   repo = repoName(context)
   const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
 
@@ -148,7 +148,7 @@ function labelParams(context, label_names) {
   return Object.assign(params, label_names)
 }
 
-function findUsername(context) {
+function commenterUsername(context) {
   if (context.payload.comment) {
     return context.payload.comment.user.login
   } else if (context.payload.issue) {
