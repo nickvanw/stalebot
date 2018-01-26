@@ -97,30 +97,9 @@ module.exports = (robot) => {
     }
   })
 
-  // Author comments on a PR review
-  robot.on('pull_request_review_comment.created', async context => {
-    let reviewAuthor = context.payload.comment.user.login
-    let prAuthor = context.payload.pull_request.user.login
-    if (reviewAuthor === prAuthor) {
-      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
-    }
-  })
-
-  // Author submits PR review
-  robot.on('pull_request_review.submitted', async context => {
-    let reviewAuthor = context.payload.review.user.login
-    let prAuthor = context.payload.pull_request.user.login
-    if (reviewAuthor === prAuthor) {
-      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
-    }
-  })
   // Author comments
-  robot.on('issue_comment.created', async context => {
-    let commentAuthor = context.payload.sender.login
-    let issueAuthor = context.payload.issue.user.login
-    if (commentAuthor === issueAuthor) {
+  robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
+    if (isAuthor(context)) {
       await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
       await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
     }
@@ -134,6 +113,21 @@ async function isMaintainer (context) {
 
   const permission = result.data.permission
   return permission === 'admin' || permission === 'write'
+}
+
+// Check if commenter is the original author
+function isAuthor (context) {
+  let issueAuthor
+
+  if (context.payload.issue) {
+    issueAuthor = context.payload.issue.user.login
+  } else if (context.payload.pull_request) {
+    issueAuthor = context.payload.pull_request.user.login
+  } else if (context.payload.review) {
+    issueAuthor = context.payload.review.user.login
+  }
+
+  return issueAuthor === context.payload.sender.login
 }
 
 function commenterUsername (context) {
