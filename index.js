@@ -84,7 +84,7 @@ module.exports = (robot) => {
 
   // New issue or PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
-    const params = labelParams(context, { labels: ['stalebot/waiting-for/maintainer'] })
+    const params = context.issue({ labels: ['stalebot/waiting-for/maintainer'] })
     const result = await context.github.issues.addLabels(params)
     return result
   })
@@ -92,8 +92,8 @@ module.exports = (robot) => {
   // Maintainer comments/reviews
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
     if (await isMaintainer(context)) {
-      await context.github.issues.addLabels(labelParams(context, {labels: ['stalebot/waiting-for/author']}))
-      await context.github.issues.removeLabel(labelParams(context, {name: 'stalebot/waiting-for/maintainer'}))
+      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/author']}))
+      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/maintainer'}))
     }
   })
 
@@ -102,8 +102,8 @@ module.exports = (robot) => {
     let reviewAuthor = context.payload.comment.user.login
     let prAuthor = context.payload.pull_request.user.login
     if (reviewAuthor === prAuthor) {
-      await context.github.issues.removeLabel(labelParams(context, {name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(labelParams(context, {labels: ['stalebot/waiting-for/maintainer']}))
+      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
+      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
     }
   })
 
@@ -112,8 +112,8 @@ module.exports = (robot) => {
     let reviewAuthor = context.payload.review.user.login
     let prAuthor = context.payload.pull_request.user.login
     if (reviewAuthor === prAuthor) {
-      await context.github.issues.removeLabel(labelParams(context, {name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(labelParams(context, {labels: ['stalebot/waiting-for/maintainer']}))
+      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
+      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
     }
   })
   // Author comments
@@ -121,31 +121,19 @@ module.exports = (robot) => {
     let commentAuthor = context.payload.sender.login
     let issueAuthor = context.payload.issue.user.login
     if (commentAuthor === issueAuthor) {
-      await context.github.issues.removeLabel(labelParams(context, {name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(labelParams(context, {labels: ['stalebot/waiting-for/maintainer']}))
+      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
+      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
     }
   })
 }
 
 // Check if commenter is a maintainer
 async function isMaintainer (context) {
-  const owner = context.payload.repository.owner.login
   const username = commenterUsername(context)
-  const repo = repoName(context)
-  const result = await context.github.repos.reviewUserPermissionLevel({owner, repo, username})
+  const result = await context.github.repos.reviewUserPermissionLevel(context.repo({username}))
 
   const permission = result.data.permission
   return permission === 'admin' || permission === 'write'
-}
-
-// Create params for adding or removing a label
-function labelParams (context, labelNames) {
-  const params = {
-    owner: context.payload.repository.owner.login,
-    repo: repoName(context),
-    number: issueOrPRNumber(context)
-  }
-  return Object.assign(params, labelNames)
 }
 
 function commenterUsername (context) {
@@ -155,24 +143,6 @@ function commenterUsername (context) {
     return context.payload.issue.user.login
   } else {
     return context.payload.review.user.login
-  }
-}
-
-// Find repo name for issue or review
-function repoName (context) {
-  if (context.payload.repository) {
-    return context.payload.repository.name
-  } else {
-    return context.payload.repo.name
-  }
-}
-
-// Find issue or PR number
-function issueOrPRNumber (context) {
-  if (context.payload.issue) {
-    return context.payload.issue.number
-  } else {
-    return context.payload.pull_request.number
   }
 }
 
