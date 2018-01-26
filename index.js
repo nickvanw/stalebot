@@ -2,8 +2,7 @@ const createScheduler = require('probot-scheduler');
 const moment = require('moment')
 
 module.exports = (robot) => {
-  // FIXME: remove interval after demo
-  createScheduler(robot, {interval: 60 * 1000 /* 1 minute */})
+  createScheduler(robot)
 
   robot.on('schedule.repository', async context => {
     context.log(context.repo(), 'Checking for issues that need excalation')
