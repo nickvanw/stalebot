@@ -42,14 +42,14 @@ module.exports = (robot) => {
 
         if (lastAuthorComment) {
           const lastCommentAt = moment(lastAuthorComment.create_at)
-          const age = now - lastCommentAt / 1000 / 60 // FIXME: switch to days :)
+          const age = now - lastCommentAt / 1000 / 60 / 60 / 24
 
-          if (age >= 180) {
+          if (age >= 90) {
             newLabel = 'stalebot/status/dire'
-          } else if (age >= 65) {
-            newLabel = 'stalebot/status/needs-attention'
-          } else if (age >= 5) {
+          } else if (age >= 15) {
             newLabel = 'stalebot/status/stale'
+          } else if (age >= 1) {
+            newLabel = 'stalebot/status/needs-attention'
           } else {
             newLabel = 'stalebot/status/fresh'
           }
