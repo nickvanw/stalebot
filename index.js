@@ -72,6 +72,16 @@ module.exports = (robot) => {
     })
   })
 
+  // App is installed on an org or user account
+  robot.on('installation.created', async context => {
+    await createLabels(context, context.payload.repositories)
+  })
+
+  // App is installed on additional repositories in an org
+  robot.on('installation_repositories.added', async context => {
+    await createLabels(context, context.payload.repositories_added)
+  })
+
   // New issue or PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = labelParams(context, { labels: ["stalebot/waiting-for/maintainer"] })
@@ -85,16 +95,6 @@ module.exports = (robot) => {
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/author"]}))
       await context.github.issues.removeLabel(labelParams(context, {name: "stalebot/waiting-for/maintainer"}))
     }
-  })
-
-  // App is installed on an org or user account
-  robot.on('installation.created', async context => {
-    await createLabels(context, context.payload.repositories)
-  })
-
-  // App is installed on additional repositories in an org
-  robot.on('installation_repositories.added', async context => {
-    await createLabels(context, context.payload.repositories_added)
   })
 
   // Author comments on a PR review
