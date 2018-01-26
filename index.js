@@ -72,7 +72,7 @@ module.exports = (robot) => {
     })
   })
 
-  // New PR is opened
+  // New issue or PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
     const params = labelParams(context, { labels: ["stalebot/waiting-for/maintainer"] })
     const result = await context.github.issues.addLabels(params)
@@ -87,16 +87,17 @@ module.exports = (robot) => {
     }
   })
 
-  // App is installed on a repo
+  // App is installed on an org or user account
   robot.on('installation.created', async context => {
     await createLabels(context, context.payload.repositories)
   })
 
-  // App is installed on a specific repo?
+  // App is installed on additional repositories in an org
   robot.on('installation_repositories.added', async context => {
     await createLabels(context, context.payload.repositories_added)
   })
 
+  // Author comments on a PR review
   robot.on('pull_request_review_comment.created', async context => {
     let reviewAuthor = context.payload.comment.user.login
     let prAuthor = context.payload.pull_request.user.login
@@ -106,6 +107,7 @@ module.exports = (robot) => {
     }
   })
 
+  // Author submits PR review
   robot.on('pull_request_review.submitted', async context => {
     let reviewAuthor = context.payload.review.user.login
     let prAuthor = context.payload.pull_request.user.login
@@ -114,6 +116,7 @@ module.exports = (robot) => {
       await context.github.issues.addLabels(labelParams(context, {labels: ["stalebot/waiting-for/maintainer"]}))
     }
   })
+  // Author comments
   robot.on('issue_comment.created', async context => {
     let commentAuthor = context.payload.sender.login
     let issueAuthor = context.payload.issue.user.login
@@ -123,7 +126,6 @@ module.exports = (robot) => {
     }
   })
 }
-
 
 // Check if commenter is a maintainer
 async function is_maintainer(context) {
@@ -183,7 +185,7 @@ let labels = [
   {name: "stalebot/status/dire", color: "da344d"}
 ]
 
-// create labels in new repo
+// Create labels in new repo
 // todo(nick): does not check if labels exist.
 async function createLabels(context, repos) {
   repos.forEach(repo => {
