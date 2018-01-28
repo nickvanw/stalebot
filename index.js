@@ -1,7 +1,10 @@
 const createScheduler = require('probot-scheduler')
 const moment = require('moment')
+const Config = require('./lib/config')
 
 module.exports = (robot) => {
+  const config = new Config()
+
   createScheduler(robot)
 
   robot.on('schedule.repository', async context => {
@@ -9,7 +12,7 @@ module.exports = (robot) => {
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
-      label: 'stalebot/waiting-for/maintainer',
+      label: config.roles.label({role: 'maintainer'}),
       per_page: 100
     }))
 
@@ -84,20 +87,32 @@ module.exports = (robot) => {
 
   // New issue or PR is opened
   robot.on(['pull_request.opened', 'issues.opened'], async context => {
-    const params = context.issue({ labels: ['stalebot/waiting-for/maintainer'] })
+    const params = context.issue({ labels: [config.roles.label({role: 'maintainer'})] })
     const result = await context.github.issues.addLabels(params)
     return result
   })
 
+  // Maintainer comments/reviews
+  robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
+    const config = new Config()
+
+    if (await isMaintainer(context)) {
+      await context.github.issues.removeLabel(context.issue({name: config.roles.label({role: 'maintainer'})}))
+      await context.github.issues.addLabels(context.issue({labels: [config.roles.label({role: 'author'})]}))
+    }
+  })
+
   // New comments from participants
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
+    const config = new Config()
+
+    // Do not consider authors as maintainers in the context of their own PRs/issues.
     if (isAuthor(context)) {
-      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
-      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
-      // Do not consider authors as maintainers in the context of their own PRs/issues.
+      await context.github.issues.removeLabel(context.issue({name: config.roles.label({role: 'author'})}))
+      await context.github.issues.addLabels(context.issue({labels: [config.roles.label({role: 'maintainer'})]}))
     } else if (await isMaintainer(context)) {
-      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/author']}))
-      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/maintainer'}))
+      await context.github.issues.addLabels(context.issue({labels: [config.roles.label({role: 'author'})]}))
+      await context.github.issues.removeLabel(context.issue({name: config.roles.label({role: 'maintainer'})}))
     }
   })
 }
@@ -136,18 +151,13 @@ function commenterUsername (context) {
   }
 }
 
-let labels = [
-  {name: 'stalebot/waiting-for/maintainer', color: 'cccccc'},
-  {name: 'stalebot/waiting-for/author', color: 'cccccc'},
-  {name: 'stalebot/status/fresh', color: '5dcc77'},
-  {name: 'stalebot/status/needs-attention', color: 'f9dc5c'},
-  {name: 'stalebot/status/stale', color: 'ff8552'},
-  {name: 'stalebot/status/dire', color: 'da344d'}
-]
-
 // Create labels in new repo
 // todo(nick): does not check if labels exist.
 async function createLabels (context, repos) {
+  const config = new Config()
+
+  let labels = config.roles.values.concat(config.escalation.values)
+
   repos.forEach(repo => {
     labels.forEach(label => {
       context.github.issues.createLabel({
