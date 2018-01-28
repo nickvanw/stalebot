@@ -1,10 +1,18 @@
 const createScheduler = require('probot-scheduler')
+<<<<<<< HEAD
 const Config = require('./lib/config')
 const Escalator = require('./lib/escalator')
 
 module.exports = (robot) => {
   const config = new Config()
   const escalator = new Escalator(config)
+=======
+const moment = require('moment')
+const Config = require('./lib/config')
+
+module.exports = (robot) => {
+  const config = new Config()
+>>>>>>> Pull the new config into the app logic
 
   createScheduler(robot)
 
@@ -13,7 +21,11 @@ module.exports = (robot) => {
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
+<<<<<<< HEAD
       labels: config.roles.label({role: 'maintainer'}),
+=======
+      label: config.roles.label({role: 'maintainer'}),
+>>>>>>> Pull the new config into the app logic
       per_page: 100
     }))
 
