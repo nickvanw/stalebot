@@ -13,7 +13,7 @@ module.exports = (robot) => {
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
-      label: config.roles.label({role: 'maintainer'}),
+      labels: config.roles.label({role: 'maintainer'}),
       per_page: 100
     }))
 
