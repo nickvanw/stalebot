@@ -89,24 +89,15 @@ module.exports = (robot) => {
     return result
   })
 
-  // Maintainer comments/reviews
-  robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
-    // If the author is a maintainer, then the issue needs attention from a different maintainer.
-    if (isAuthor(context)) {
-      return
-    }
-
-    if (await isMaintainer(context)) {
-      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/author']}))
-      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/maintainer'}))
-    }
-  })
-
-  // Author comments
+  // New comments from participants
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
     if (isAuthor(context)) {
       await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/author'}))
       await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/maintainer']}))
+      // Do not consider authors as maintainers in the context of their own PRs/issues.
+    } else if (await isMaintainer(context)) {
+      await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/author']}))
+      await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/maintainer'}))
     }
   })
 }
