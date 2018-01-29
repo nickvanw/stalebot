@@ -147,13 +147,28 @@ function commenterUsername (context) {
 }
 
 // Create labels in new repo
-// todo(nick): does not check if labels exist.
 async function createLabels (context, repos) {
   const config = new Config()
+  const appLabels = config.roles.values.concat(config.escalation.values)
 
-  let labels = config.roles.values.concat(config.escalation.values)
+  repos.forEach(async repo => {
+    const getLabels = context.github.issues.getLabels({
+      owner: repo.full_name.split('/')[0],
+      repo: repo.name,
+      per_page: 100
+    })
 
-  repos.forEach(repo => {
+    let repoLabels = []
+    await context.github.paginate(getLabels, async res => {
+      res.data.forEach(label => {
+        repoLabels.push(label.name)
+      })
+    })
+
+    let labels = appLabels.filter(label => {
+      return !repoLabels.includes(label.name)
+    })
+
     labels.forEach(label => {
       context.github.issues.createLabel({
         owner: context.payload.installation.account.login,
