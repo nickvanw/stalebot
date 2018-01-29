@@ -91,6 +91,11 @@ module.exports = (robot) => {
 
   // Maintainer comments/reviews
   robot.on(['issue_comment.created', 'pull_request_review.submitted', 'pull_request_review_comment.created'], async context => {
+    // If the author is a maintainer, then the issue needs attention from a different maintainer.
+    if (isAuthor(context)) {
+      return
+    }
+
     if (await isMaintainer(context)) {
       await context.github.issues.addLabels(context.issue({labels: ['stalebot/waiting-for/author']}))
       await context.github.issues.removeLabel(context.issue({name: 'stalebot/waiting-for/maintainer'}))
