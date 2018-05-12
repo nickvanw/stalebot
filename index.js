@@ -1,9 +1,10 @@
 const createScheduler = require('probot-scheduler')
-const moment = require('moment')
 const Config = require('./lib/config')
+const Escalator = require('./lib/escalator')
 
 module.exports = (robot) => {
   const config = new Config()
+  const escalator = new Escalator(config)
 
   createScheduler(robot)
 
@@ -12,7 +13,7 @@ module.exports = (robot) => {
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
-      label: config.roles.label({role: 'maintainer'}),
+      labels: config.roles.label({role: 'maintainer'}),
       per_page: 100
     }))
 
@@ -38,37 +39,19 @@ module.exports = (robot) => {
           })
         })
 
-        let currentLabel = issue.labels.find(label => label.name.startsWith('stalebot/status'))
-        let newLabel
+        let escalation = escalator.escalate(issue, lastAuthorComment)
 
-        const now = new Date()
+        escalation.remove.forEach(async label => {
+          await context.github.issues.removeLabel(context.repo({
+            number: issue.number,
+            name: label
+          }))
+        })
 
-        if (lastAuthorComment) {
-          const lastCommentAt = moment(lastAuthorComment.create_at)
-          const age = now - lastCommentAt / 1000 / 60 / 60 / 24
-
-          if (age >= 90) {
-            newLabel = 'stalebot/status/dire'
-          } else if (age >= 15) {
-            newLabel = 'stalebot/status/stale'
-          } else if (age >= 1) {
-            newLabel = 'stalebot/status/needs-attention'
-          } else {
-            newLabel = 'stalebot/status/fresh'
-          }
-
-          if (currentLabel && currentLabel.name !== newLabel) {
-            await context.github.issues.removeLabel(context.repo({
-              number: issue.number,
-              name: currentLabel.name
-            }))
-          } else if (currentLabel && newLabel === currentLabel.name) {
-            return
-          }
-
+        if (escalation.add.length > 0) {
           await context.github.issues.addLabels(context.repo({
             number: issue.number,
-            labels: [newLabel]
+            labels: escalation.add
           }))
         }
       })
