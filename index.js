@@ -1,10 +1,18 @@
 const createScheduler = require('probot-scheduler')
+<<<<<<< HEAD
 const Config = require('./lib/config')
 const Escalator = require('./lib/escalator')
 
 module.exports = (robot) => {
   const config = new Config()
   const escalator = new Escalator(config)
+=======
+const moment = require('moment')
+const Config = require('./lib/config')
+
+module.exports = (robot) => {
+  const config = new Config()
+>>>>>>> Pull the new config into the app logic
 
   createScheduler(robot)
 
@@ -13,7 +21,11 @@ module.exports = (robot) => {
 
     const issues = context.github.issues.getForRepo(context.repo({
       state: 'open',
+<<<<<<< HEAD
       labels: config.roles.label({role: 'maintainer'}),
+=======
+      label: config.roles.label({role: 'maintainer'}),
+>>>>>>> Pull the new config into the app logic
       per_page: 100
     }))
 
@@ -135,13 +147,28 @@ function commenterUsername (context) {
 }
 
 // Create labels in new repo
-// todo(nick): does not check if labels exist.
 async function createLabels (context, repos) {
   const config = new Config()
+  const appLabels = config.roles.values.concat(config.escalation.values)
 
-  let labels = config.roles.values.concat(config.escalation.values)
+  repos.forEach(async repo => {
+    const getLabels = context.github.issues.getLabels({
+      owner: repo.full_name.split('/')[0],
+      repo: repo.name,
+      per_page: 100
+    })
 
-  repos.forEach(repo => {
+    let repoLabels = []
+    await context.github.paginate(getLabels, async res => {
+      res.data.forEach(label => {
+        repoLabels.push(label.name)
+      })
+    })
+
+    let labels = appLabels.filter(label => {
+      return !repoLabels.includes(label.name)
+    })
+
     labels.forEach(label => {
       context.github.issues.createLabel({
         owner: context.payload.installation.account.login,
